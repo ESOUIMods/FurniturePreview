@@ -15,8 +15,9 @@ PREVIEW:DisablePreviewMode()
 --]]
 
 local LIB_NAME = "LibPreview"
-local VERSION = 13
-local lib = LibStub:NewLibrary(LIB_NAME, VERSION)
+local VERSION = 14
+local lib = {}
+_G["LibPreview"] = lib
 if not lib then return end
 
 lib.dataLoaded = false
@@ -32,12 +33,12 @@ end
 local NUM_SAVED_SETS = 4
 
 function lib:Initialize()
-	
+
 	self.itemIdToMarkedId = {}
 	for marketId, marketData in pairs(self.MarkedIdToItemInfo) do
 		self.itemIdToMarkedId[ marketData[1] ] = marketId
 	end
-	
+
 	self.defaultOptionsFragment = ZO_ItemPreviewOptionsFragment:New({
 		paddingLeft = 0,
 		paddingRight = 0,
@@ -45,7 +46,7 @@ function lib:Initialize()
 		dynamicFramingConsumedHeight = 300,
 		maintainsPreviewCollection = true,
 	})
-	
+
 	self.defaultLeftOptionsFragment = ZO_ItemPreviewOptionsFragment:New({
 		paddingLeft = 0,
 		paddingRight = 950,
@@ -53,14 +54,14 @@ function lib:Initialize()
 		dynamicFramingConsumedHeight = 300,
 		maintainsPreviewCollection = true,
 	})
-	
+
 	self.framePlayerFragment = ZO_FramePlayerFragment:New()
 	self.framePlayerFragment:RegisterCallback("StateChange", function(oldState, newState)
 		if newState == SCENE_HIDING then
 			self:DisablePreviewMode()
 		end
 	end)
-	
+
 	local OUTFIT_COLLECTION = #ITEM_PREVIEW_KEYBOARD.previewTypeObjects + 1
 	lib.hookedTypes[OUTFIT_COLLECTION] = true
 	local ZO_ItemPreviewType_OutfitCollection = ZO_ItemPreviewType:Subclass()
@@ -77,12 +78,12 @@ function lib:Initialize()
 	function ZO_ItemPreviewType_OutfitCollection:HasStaticParameters()
 		return false
 	end
-	
+
 	function ZO_ItemPreviewType_OutfitCollection:GetPendingDyeData()
 		self.queuedSlots[self.outfitSlotIndex] = nil
 		return GetSavedDyeSetDyes(self.previewVariationIndex-1)
 	end
-	
+
 	function ZO_ItemPreviewType_OutfitCollection:GetNumVariations()
 		--if self.showDyeStampSets then return NUM_SAVED_SETS end
 		--return 0
@@ -93,8 +94,8 @@ function lib:Initialize()
 		if variationIndex == 1 then return "No Dye Set" end
 		return "Saved Dye Set " .. tostring(variationIndex-1)
 	end
-	
-	
+
+
 	function ZO_ItemPreviewType_OutfitCollection:Apply(variationIndex)
 		if self.previewVariationIndex ~= variationIndex then
 			self.previewVariationIndex = variationIndex
@@ -121,18 +122,18 @@ function lib:Initialize()
 		return ZO_OutfitSlotManipulator.UpdatePreview(self, shouldRefresh)
 	end
 	--]]
-	
+
 	function ZO_ItemPreviewType_OutfitCollection:IsAnyChangePending()
 		return next(self.queuedSlots) ~= nil
 	end
-	
+
 	ITEM_PREVIEW_KEYBOARD.previewTypeObjects[OUTFIT_COLLECTION] = ZO_ItemPreviewType_OutfitCollection:New()
 	ITEM_PREVIEW_GAMEPAD.previewTypeObjects[OUTFIT_COLLECTION] = ZO_ItemPreviewType_OutfitCollection:New()
-	
+
 	function ZO_ItemPreview_Shared:PreviewOutfitCollection(list)
 		self:SharedPreviewSetup(OUTFIT_COLLECTION, list)
 	end
-	
+
 	local weaponSlots = {
 		[OUTFIT_SLOT_WEAPON_BOW] = true,
 		[OUTFIT_SLOT_WEAPON_BOW_BACKUP] = true,
@@ -147,10 +148,10 @@ function lib:Initialize()
 		[OUTFIT_SLOT_SHIELD] = true,
 		[OUTFIT_SLOT_SHIELD_BACKUP] = true,
 	}
-	
+
 	function ZO_ItemPreview_Shared:PreviewItemLink(itemLink)
 		local marketId = lib:GetMarketIdFromItemLink(itemLink)
-	
+
 		if marketId then
 			if IsItemLinkPlaceableFurniture(itemLink) then
 				self:PreviewFurnitureMarketProduct(marketId)
@@ -159,37 +160,37 @@ function lib:Initialize()
 			end
 			return
 		end
-		
+
 		if self.currentPreviewType ~= OUTFIT_COLLECTION then-- ZO_ITEM_PREVIEW_OUTFIT then
 			self:RefreshState()
 			--self:PreviewUnequipOutfit()
 			--local showDyeStampSets = true
 			self:SharedPreviewSetup(ZO_ITEM_PREVIEW_OUTFIT, self.previewCollectionId, UNEQUIPPED_OUTFIT_INDEX)
 		end
-		
+
 		local collectibleData = lib:GetOutfitCollectibleFromItemLink(itemLink)
 		if not collectibleData then return end
-			
+
 		local previewCollectionId = self:GetPreviewCollectionId()
 		local preferredOutfitSlot = ZO_OUTFIT_MANAGER:GetPreferredOutfitSlotForStyle(collectibleData)
-		
+
 		if weaponSlots[preferredOutfitSlot] then
 			for slot in pairs(weaponSlots) do
 				ClearOutfitSlotPreviewElementFromPreviewCollection(previewCollectionId, slot)
 			end
 		end
-		
+
 		self:PreviewOutfitCollection({[preferredOutfitSlot] = collectibleData:GetId()})
 	end
-	
+
 	ZO_PreHook("PreviewInventoryItemAsFurniture", function()
 		self:Debug("preview inventory furniture")
 	end)
-	
+
 	ZO_PreHook("PreviewInventoryItem", function()
 		self:Debug("preview inventory item/armor")
 	end)
-	
+
 	-- fragment which is added to the scene.
 	-- when the scene changes, we know the preview is terminated
 	self.externalPreviewExitFragment = ZO_SceneFragment:New()
@@ -198,14 +199,14 @@ function lib:Initialize()
 			self:DisablePreviewMode()
 		end
 	end)
-	
+
 	-- create a preview scene, which is used when we try to preview an item during the HUD or HUDUI scene
 	self.scene = ZO_Scene:New(LIB_NAME, SCENE_MANAGER)
 	self.scene:AddFragmentGroup(FRAGMENT_GROUP.MOUSE_DRIVEN_UI_WINDOW)
 	self.scene:AddFragmentGroup(FRAGMENT_GROUP.FRAME_TARGET_CENTERED_NO_BLUR)
 	self.scene:AddFragment(ITEM_PREVIEW_KEYBOARD:GetFragment())
 	self.scene:AddFragment(self.externalPreviewExitFragment)
-	
+
 	-- quaternary end preview keybind
 	local function GetDescriptorFromButton(buttonOrEtherealDescriptor)
 		if type(buttonOrEtherealDescriptor) == "userdata" then
@@ -213,7 +214,7 @@ function lib:Initialize()
 		end
 		return buttonOrEtherealDescriptor
 	end
-	
+
 	self.keybindButtonGroup = {
 		alignment = KEYBIND_STRIP_ALIGN_CENTER,
 		{
@@ -228,7 +229,7 @@ function lib:Initialize()
 						end,
 		}
 	}
-	
+
 	self.keybindFragment = ZO_SceneFragment:New()
 	self.keybindFragment:RegisterCallback("StateChange", function(oldState, newState)
 		if newState == SCENE_SHOWN then
@@ -237,7 +238,7 @@ function lib:Initialize()
 				KEYBIND_STRIP:RemoveKeybindButton(descriptor)
 			end
 			KEYBIND_STRIP:AddKeybindButtonGroup(self.keybindButtonGroup)
-			
+
 			if descriptor then
 				if descriptor.keybindButtonGroupDescriptor then
 					--local myDescriptor = GetDescriptorFromButton(KEYBIND_STRIP.keybinds["UI_SHORTCUT_QUATERNARY"])
@@ -264,7 +265,7 @@ function lib:Initialize()
 			KEYBIND_STRIP:RemoveKeybindButtonGroup(self.keybindButtonGroup)
 		end
 	end )
-	
+
 	self.initialized = true
 end
 
@@ -284,16 +285,18 @@ function lib:GetOutfitCollectibleFromItemLink(itemLink)
 		numSubCategories = 7 -- 7 armor types
 	end
 	if not categoryIndex then return nil end
-	
+
 	for subCategoryIndex = 1, numSubCategories do
 		local outfitCategory = ZO_COLLECTIBLE_DATA_MANAGER:GetCategoryDataByIndicies(categoryIndex, subCategoryIndex)
-		for index, collectible in outfitCategory:CollectibleIterator() do
-			if collectible.referenceId == outfitStyleId then
-				return collectible
-			end
+        if outfitCategory then
+            for index, collectible in outfitCategory:CollectibleIterator() do
+                if collectible.referenceId == outfitStyleId then
+                    return collectible
+                end
+            end
 		end
 	end
-	
+
 	return nil
 end
 
@@ -303,17 +306,17 @@ function lib:GetMarketIdFromItemLink(itemLink)
 	if resultItemLink and resultItemLink ~= "" then
 		itemLink = resultItemLink
 	end
-	
+
 	if not IsItemLinkPlaceableFurniture(itemLink) then return end
-	
+
 	local _, _, _, itemId = ZO_LinkHandler_ParseLink(itemLink)
 	itemId = tonumber(itemId)
-	
+
 	local marketId = self.itemIdToMarkedId[ itemId ]
 	if not marketId then return end
-	
+
 	if not CanPreviewMarketProduct(marketId) then return end
-	
+
 	return marketId
 end
 
@@ -335,7 +338,7 @@ ZO_PreHook("SetFrameLocalPlayerInGameCamera", function(value)
 end)
 
 function lib:EnablePreviewMode(frameFragment, previewOptionsFragment)
-	
+
 	if self.previewStartedByLibrary then
 		if self.keybindFragment:IsHidden() then
 			self:Debug("re-add keybind")
@@ -344,7 +347,7 @@ function lib:EnablePreviewMode(frameFragment, previewOptionsFragment)
 		return
 	end
 	self.previewStartedByLibrary = true
-	
+
 	-- select the correct frame position
 	if not frameFragment then
 		if SYSTEMS:IsShowing(ZO_TRADING_HOUSE_SYSTEM_NAME) or SYSTEMS:IsShowing("trade") then
@@ -364,12 +367,12 @@ function lib:EnablePreviewMode(frameFragment, previewOptionsFragment)
 			previewOptionsFragment = previewOptionsFragment or self.defaultLeftOptionsFragment
 		end
 	end
-	
+
 	self.usedInteractionPreview = false
 	self.addedPreviewFragment = false
-	
+
 	if not IsInteractionUsingInteractCamera() then
-		
+
 		-- if we are in the base scene, trigger the preview scene
 		if HUD_SCENE:IsShowing() or HUD_UI_SCENE:IsShowing() then
 			self:Debug("enable preview scene")
@@ -379,23 +382,23 @@ function lib:EnablePreviewMode(frameFragment, previewOptionsFragment)
 			return
 		end
 		-- otherwise add preview to the currently viewed scene
-		
+
 		-- remember frame and options fragment so we can remove them when disabling the preview
 		self.frameFragment = frameFragment
 		self.previewOptionsFragment = previewOptionsFragment or self.defaultOptionsFragment
-		
+
 		SCENE_MANAGER:AddFragment(FRAME_PLAYER_ON_SCENE_HIDDEN_FRAGMENT)
 		SCENE_MANAGER:AddFragment(self.frameFragment)
 		SCENE_MANAGER:AddFragment(self.previewOptionsFragment)
-		
+
 		if not ITEM_PREVIEW_KEYBOARD:GetFragment():IsShowing() then
 			SCENE_MANAGER:AddFragment(ITEM_PREVIEW_KEYBOARD:GetFragment())
 			self.addedPreviewFragment = true
 		end
-		
+
 	else
 		-- if we are interacting (eg trader or crafting) then use ZOS' the interaction preview system
-		
+
 		-- remember frame and options fragment so we can remove them when disabling the preview
 		self.frameFragment = frameFragment
 		self.previewOptionsFragment = previewOptionsFragment or self.defaultOptionsFragment
@@ -405,32 +408,32 @@ function lib:EnablePreviewMode(frameFragment, previewOptionsFragment)
 			self.frameFragment,
 			self.framePlayerFragment,
 			self.previewOptionsFragment)
-		
+
 	end
-	
+
 	if self.keybindFragment:IsHidden() then
 		self:Debug("add keybind")
 		SCENE_MANAGER:AddFragment(self.keybindFragment)
 	end
-	
+
 	SCENE_MANAGER:AddFragment(self.externalPreviewExitFragment)
-	
+
 end
 
 function lib:DisablePreviewMode()
 	if not self.previewStartedByLibrary then return end
 	self.previewStartedByLibrary = false
-	
+
 	SCENE_MANAGER:RemoveFragment(self.externalPreviewExitFragment)
-	
+
 	-- if preview via adding scene
 	if self.scene:IsShowing() then
 		SCENE_MANAGER:Show("hudui")
 		return
 	end
-	
+
 	SCENE_MANAGER:RemoveFragment(self.externalPreviewExitFragment)
-	
+
 	-- if preview using ZOS' interaction preview
 	if self.usedInteractionPreview then
 		SYSTEMS:GetObject("itemPreview"):SetInteractionCameraPreviewEnabled(
@@ -441,7 +444,7 @@ function lib:DisablePreviewMode()
 		SCENE_MANAGER:RemoveFragment(self.keybindFragment)
 		return
 	end
-	
+
 	-- if preview via adding fragments
 	SCENE_MANAGER:RemoveFragment(FRAME_PLAYER_ON_SCENE_HIDDEN_FRAGMENT)
 	SCENE_MANAGER:RemoveFragment(self.frameFragment)
@@ -452,7 +455,7 @@ function lib:DisablePreviewMode()
 		ITEM_PREVIEW_KEYBOARD:EndCurrentPreview()
 	end
 	SCENE_MANAGER:RemoveFragment(self.keybindFragment)
-	
+
 end
 
 function lib:PreviewItemLink(itemLink, frameFragment, optionsFragment)
@@ -475,13 +478,13 @@ end
 
 local function OnActivated()
 	EVENT_MANAGER:UnregisterForEvent(LIB_NAME, EVENT_PLAYER_ACTIVATED)
-	
+
 	lib:Initialize()
 end
 
 function lib:Load()
 	EVENT_MANAGER:RegisterForEvent(LIB_NAME, EVENT_PLAYER_ACTIVATED, OnActivated)
-	
+
 	local previewStarted = false
 	local fastOnUpdate = true
 	local untaintedFunction
@@ -489,7 +492,7 @@ function lib:Load()
 	HUD_SCENE:AddFragment(SYSTEMS:GetObject("itemPreview").fragment)
 	lib.origOnPreviewShowing = ZO_ItemPreview_Shared.OnPreviewShowing
 	lib.log = {}
-	
+
 	ZO_PreHook(ZO_ItemPreview_Shared, "OnPreviewShowing", function()
 		local success, msg = pcall(function() error("") end)
 		local count = 0
@@ -503,13 +506,13 @@ function lib:Load()
 			d("FurniturePreview error. No valid hook")
 			return
 		end
-		
+
 		local origGetPreviewModeEnabled = GetPreviewModeEnabled
 		GetPreviewModeEnabled = function()
 			GetPreviewModeEnabled = origGetPreviewModeEnabled
 			return true
 		end
-		
+
 		ZO_ItemPreview_Shared.OnPreviewShowing = lib.origOnPreviewShowing
 		lib.origRegisterForUpdate = EVENT_MANAGER.RegisterForUpdate
 		ZO_PreHook(EVENT_MANAGER, "RegisterForUpdate", function(self, name, interval, func)
@@ -526,9 +529,9 @@ function lib:Load()
 					d("FurniturePreview error. No valid hook")
 					return
 				end
-				
+
 				lib.validHook = true
-				
+
 				EVENT_MANAGER.RegisterForUpdate = lib.origRegisterForUpdate
 				ZO_ItemPreview_Shared.OnPreviewShowing = function(...)
 					lib.origOnPreviewShowing(...)
@@ -552,12 +555,12 @@ function lib:Load()
 			fragment:SetHideOnSceneHidden(true)
 		end, 0)
 	end)
-	
+
 	lib.hookedTypes = {
 		[ZO_ITEM_PREVIEW_FURNITURE_MARKET_PRODUCT] = true,
 		[ZO_ITEM_PREVIEW_MARKET_PRODUCT] = true,
 	}
-	
+
 	lib.origSharedPreviewSetup = ZO_ItemPreview_Shared.SharedPreviewSetup
 	ZO_PreHook(ZO_ItemPreview_Shared, "SharedPreviewSetup", function(self, previewType, ...)
 		if lib.hookedTypes[previewType] then
@@ -565,7 +568,7 @@ function lib:Load()
 			fastOnUpdate = true
 		end
 	end)
-	
+
 	lib.origIsCharacterPreviewingAvailable = IsCharacterPreviewingAvailable
 	ZO_PreHook("IsCharacterPreviewingAvailable", function()
 		if previewStarted then

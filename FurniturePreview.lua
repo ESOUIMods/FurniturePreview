@@ -1,6 +1,5 @@
-
 FurPreview = FurPreview or {}
-local PREVIEW = LibStub("LibPreview")
+local PREVIEW = LibPreview
 
 -- copied from esoui code:
 local function GetInventorySlotComponents(inventorySlot)
@@ -17,7 +16,7 @@ local function GetInventorySlotComponents(inventorySlot)
 	elseif controlType == CT_BUTTON then
 		listPart = buttonPart:GetParent()
 	end
-	
+
 	return buttonPart, listPart, multiIconPart
 end
 
@@ -25,7 +24,7 @@ end
 EVENT_MANAGER:RegisterForEvent("FurniturePreview", EVENT_ADD_ON_LOADED, function(...) FurPreview:OnAddonLoaded(...) end)
 function FurPreview:OnAddonLoaded(_, addon)
 	if addon ~= "FurniturePreview" then return end
-	
+
 	self.settings = ZO_SavedVars:NewAccountWide("FurniturePreview_SavedVars", 1, "settings", {
 		disablePreviewOnClick = false,
 		disablePreviewArmor = false,
@@ -38,11 +37,11 @@ function FurPreview:OnAddonLoaded(_, addon)
 		tradinghouse = true,
 		trade = true,
 	})
-	
+
 	self.ZO_InventorySlot_OnSlotClicked = ZO_InventorySlot_OnSlotClicked
-	
+
 	self:SetPreviewOnClick(not self.settings.disablePreviewOnClick)
-	
+
 	SLASH_COMMANDS["/previewonclick"] = function()
 		if self.settings.disablePreviewOnClick then
 			d("activated preview on click")
@@ -51,7 +50,7 @@ function FurPreview:OnAddonLoaded(_, addon)
 		end
 		self:SetPreviewOnClick(self.settings.disablePreviewOnClick)
 	end
-	
+
 	SLASH_COMMANDS["/previewarmor"] = function()
 		local shouldPreview = self.settings.disablePreviewArmor
 		if shouldPreview then
@@ -61,28 +60,29 @@ function FurPreview:OnAddonLoaded(_, addon)
 		end
 		self:SetPreviewArmor(shouldPreview)
 	end
-	
+
 	-- Update the mouse over cursor icon. display a preview cursor when previewing is possible
 	ZO_PreHook(ZO_ItemSlotActionsController, "SetInventorySlot", function(self, inventorySlot)
 		if(GetCursorContentType() ~= MOUSE_CONTENT_EMPTY) then return end
-		
+
 		if not inventorySlot then
 			WINDOW_MANAGER:SetMouseCursor(MOUSE_CURSOR_DO_NOT_CARE)
 			return
 		end
-		
+
 		local itemLink, slotType = FurPreview:GetInventorySlotItemData(inventorySlot)
 		if FurPreview:CanPreviewItem(inventorySlot, itemLink) then
 			WINDOW_MANAGER:SetMouseCursor(MOUSE_CURSOR_PREVIEW)
 		end
 	end)
-	
+
 	-- end preview when switching tabs in the guild store
 	ZO_PreHook(TRADING_HOUSE, "HandleTabSwitch", function(_, tabData)
 		FurPreview:EndPreview()
 	end)
-	
+
 	-- Add the preview option to the right click menu for item links (ie. chat)
+    --[[
 	local original_OnLinkMouseUp = ZO_LinkHandler_OnLinkMouseUp
 	ZO_LinkHandler_OnLinkMouseUp = function(itemLink, button, control)
 		if (type(itemLink) == 'string' and #itemLink > 0) then
@@ -101,9 +101,10 @@ function FurPreview:OnAddonLoaded(_, addon)
 			end
 		end
 	end
-	
+    ]]--
+
 	ZO_PreHook("ZO_InventorySlot_ShowContextMenu", function(control)
-		zo_callLater(function() 
+		zo_callLater(function()
 			if FurPreview:CanPreviewItem(control) then
 				AddCustomMenuItem(GetString(SI_CRAFTING_ENTER_PREVIEW_MODE), function()
 					FurPreview:Preview(control)
@@ -112,8 +113,8 @@ function FurPreview:OnAddonLoaded(_, addon)
 			end
 		end, 50)
 	end)
-	
-	
+
+
 	-- add trading house armor preview
 	ZO_PreHook("ZO_TradingHouse_OnSearchResultClicked", function(searchResultSlot, button)
 		if FurPreview.settings.disablePreviewArmor or not self:IsValidScene() then
@@ -131,7 +132,7 @@ function FurPreview:OnAddonLoaded(_, addon)
 			end
 		end
 	end)
-	
+
 	local function GetTradingHouseIndexForPreviewFromSlot(storeEntrySlot)
 		local inventorySlot, listPart, multiIconPart = ZO_InventorySlot_GetInventorySlotComponents(storeEntrySlot)
 
@@ -151,7 +152,7 @@ function FurPreview:OnAddonLoaded(_, addon)
 
 		return nil
 	end
-	
+
 	function ZO_TradingHouse_OnSearchResultMouseEnter(searchResultSlot)
 		ZO_InventorySlot_OnMouseEnter(searchResultSlot)
 
@@ -173,9 +174,9 @@ function FurPreview:OnAddonLoaded(_, addon)
 		end
 		KEYBIND_STRIP:UpdateKeybindButtonGroup(self.keybindStripDescriptor)
 	end
-	
+
 	function TRADING_HOUSE:PreviewSearchResult(tradingHouseIndex)
-		
+
 		local itemLink = GetTradingHouseSearchResultItemLink(tradingHouseIndex)
 		if FurPreview:IsItemLinkPreviewableArmor(itemLink) then
 			PREVIEW:PreviewItemLink(itemLink)
@@ -183,7 +184,7 @@ function FurPreview:OnAddonLoaded(_, addon)
 		end
 		local itemType, specializedItemType = GetItemLinkItemType(itemLink)
 		local shouldBeEmptyWorld = not (itemType == ITEMTYPE_ARMOR)
-		
+
 		if not ITEM_PREVIEW_KEYBOARD:IsInteractionCameraPreviewEnabled() then
 			self:TogglePreviewMode(not shouldBeEmptyWorld)
 		else
@@ -192,7 +193,7 @@ function FurPreview:OnAddonLoaded(_, addon)
 				self:TogglePreviewMode(not shouldBeEmptyWorld)
 			end
 		end
-		
+
 		if shouldBeEmptyWorld then
 			ITEM_PREVIEW_KEYBOARD:PreviewTradingHouseSearchResultAsFurniture(tradingHouseIndex)
 		else
@@ -203,7 +204,7 @@ function FurPreview:OnAddonLoaded(_, addon)
 		KEYBIND_STRIP:UpdateKeybindButtonGroup(self.keybindStripDescriptor)
 	end
 	--]]
-	
+
 	ZO_PreHook(TRADING_HOUSE, "PreviewSearchResult", function(self, tradingHouseIndex)
 		local itemLink = GetTradingHouseSearchResultItemLink(tradingHouseIndex)
 		if not FurPreview.settings.disablePreviewArmor then
@@ -213,7 +214,7 @@ function FurPreview:OnAddonLoaded(_, addon)
 			end
 		end
 	end)
-	
+
 	FurPreview:SetupOptions()
 end
 
@@ -231,15 +232,15 @@ function FurPreview:SetPreviewOnClick(previewOnClick)
 		ZO_PreHook("ZO_InventorySlot_OnSlotClicked", function(inventorySlot, button)
 			if(button ~= BUTTON_LEFT) then return end
 			if(GetCursorContentType() ~= MOUSE_CONTENT_EMPTY) then return end
-			
+
 			inventorySlot = GetInventorySlotComponents(inventorySlot)
-			
+
 			if FurPreview:CanPreviewItem(inventorySlot) then
 				FurPreview:Preview(inventorySlot)
 				WINDOW_MANAGER:SetMouseCursor(MOUSE_CURSOR_PREVIEW)
 				return true
 			end
-			
+
 		end)
 	end
 end
@@ -252,19 +253,19 @@ end
 local slotTypeToItemLink = {
 	--[SLOT_TYPE_TRADING_HOUSE_ITEM_RESULT] = function(inventorySlot) return GetTradingHouseSearchResultItemLink(ZO_Inventory_GetSlotIndex(inventorySlot)) end,
 	[SLOT_TYPE_TRADING_HOUSE_ITEM_LISTING] = function(inventorySlot) return GetTradingHouseListingItemLink(ZO_Inventory_GetSlotIndex(inventorySlot)) end,
-	
+
 	[SLOT_TYPE_CRAFTING_COMPONENT] = function(inventorySlot) return GetItemLink(ZO_Inventory_GetBagAndIndex(inventorySlot)) end,
-	
+
 	--[SLOT_TYPE_STORE_BUY] = function(inventorySlot) return GetStoreItemLink(inventorySlot.index) end,
 	[SLOT_TYPE_STORE_BUYBACK] = function(inventorySlot) return GetBuybackItemLink(inventorySlot.index) end,
-	
+
 	[SLOT_TYPE_THEIR_TRADE] = function(inventorySlot) return GetTradeItemLink(TRADE_THEM, inventorySlot.index) end,
 	[SLOT_TYPE_MY_TRADE] = function(inventorySlot) return GetTradeItemLink(TRADE_ME, inventorySlot.index) end,
-	
+
 	[SLOT_TYPE_ITEM] = function(inventorySlot) return GetItemLink(ZO_Inventory_GetBagAndIndex(inventorySlot)) end,
 	[SLOT_TYPE_BANK_ITEM] = function(inventorySlot) return GetItemLink(ZO_Inventory_GetBagAndIndex(inventorySlot)) end,
 	[SLOT_TYPE_GUILD_BANK_ITEM] = function(inventorySlot) return GetItemLink(ZO_Inventory_GetBagAndIndex(inventorySlot)) end,
-	
+
 	[SLOT_TYPE_MAIL_QUEUED_ATTACHMENT] = function(inventorySlot) return GetItemLink(ZO_Inventory_GetBagAndIndex(inventorySlot)) end,
 	[SLOT_TYPE_MAIL_ATTACHMENT] = function(inventorySlot)
 		local attachmentIndex = ZO_Inventory_GetSlotIndex(inventorySlot)
@@ -282,12 +283,12 @@ function FurPreview:GetInventorySlotItemData(inventorySlot)
 	if not inventorySlot then return end
 	local slotType = ZO_InventorySlot_GetType(inventorySlot)
 	local itemLink
-	
+
 	local getItemLink = slotTypeToItemLink[slotType]
 	if getItemLink then
 		itemLink = getItemLink(inventorySlot)
 	end
-	
+
 	return itemLink, slotType
 end
 
@@ -296,10 +297,10 @@ function FurPreview:Preview(inventorySlot, itemLink)
 	if inventorySlot then
 		itemLink, slotType = FurPreview:GetInventorySlotItemData(inventorySlot)
 	end
-	
+
 	self.inventorySlot = inventorySlot
 	self.itemLink = itemLink
-	
+
 	if inventorySlot ~= nil then
 		if slotType == SLOT_TYPE_ITEM or slotType == SLOT_TYPE_BANK_ITEM or slotType == SLOT_TYPE_GUILD_BANK_ITEM then
 			if not FurPreview:IsItemLinkPreviewableArmor(itemLink) then
@@ -325,19 +326,19 @@ function FurPreview:CanPreviewItem(inventorySlot, itemLink)
 		if not self:IsValidScene() then
 			return false
 		end
-		itemLink, slotType = FurPreview:GetInventorySlotItemData(inventorySlot)	
+		itemLink, slotType = FurPreview:GetInventorySlotItemData(inventorySlot)
 	end
-	
+
 	if FurPreview:IsItemLinkPreviewableArmor(itemLink) then
 		return not FurPreview.settings.disablePreviewArmor
 	end
-	
+
 	if PREVIEW:CanPreviewItemLink(itemLink) then return true end
-	
+
 	if slotType == SLOT_TYPE_ITEM or slotType == SLOT_TYPE_BANK_ITEM or slotType == SLOT_TYPE_GUILD_BANK_ITEM then
 		return IsItemPlaceableFurniture(ZO_Inventory_GetBagAndIndex(inventorySlot)) or IsItemLinkPlaceableFurniture(GetItemLinkRecipeResultItemLink(itemLink))
 	end
-	
+
 end
 
 function FurPreview:IsValidScene()

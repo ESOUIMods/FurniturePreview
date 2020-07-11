@@ -6,9 +6,9 @@ function FurPreview:SetupOptions()
 		version = "1.14",
 		registerForDefaults = true,
 	}
-	
+
 	local lang = self.lang
-	
+
 	self.optionsTable = {
 		{
 			type = "checkbox",
@@ -36,7 +36,7 @@ function FurPreview:SetupOptions()
 			width = "full",	--or "half" (optional)
 		},
 	}
-	
+
 	local scenes = {"smithing", "inventory", "bank", "guildBank", "mailInbox", "mailSend", "tradinghouse", "trade"}
 	for _, scene in pairs(scenes) do
 		local tag = scene
@@ -49,9 +49,9 @@ function FurPreview:SetupOptions()
 			default = true,
 		})
 	end
-	
 
-	local LAM = LibStub("LibAddonMenu-2.0")
+
+	local LAM = LibAddonMenu2
 	LAM:RegisterAddonPanel("FurniturePreviewOptions", panelData)
 	LAM:RegisterOptionControls("FurniturePreviewOptions", self.optionsTable)
 end

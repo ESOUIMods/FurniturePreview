@@ -1,0 +1,9 @@
+## Title: LibPreview v14
+## Author: Shinni
+## Version: 14
+## AddOnVersion: 14
+## APIVersion: 100031
+## IsLibrary: true
+
+LibPreview.lua
+PreviewData.lua
